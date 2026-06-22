@@ -213,20 +213,39 @@ function resetContactForm(){
 }
 sendAnother.addEventListener('click',resetContactForm);
 
-contactForm.addEventListener('submit',function(e){
+contactForm.addEventListener('submit',async function(e){
   e.preventDefault();
   if(sendButton.disabled)return;
   contactForm.classList.remove('has-error');
-  document.getElementById('formNext').value=location.origin+location.pathname+'#contact-success';
   sendButton.disabled=true;
-  setTimeout(function(){HTMLFormElement.prototype.submit.call(contactForm)},1000);
-});
-if(location.hash==='#contact-success'){
-  setTimeout(function(){
+  var controller=new AbortController();
+  var timeout=setTimeout(function(){controller.abort()},15000);
+  var fields=Object.fromEntries(new FormData(contactForm).entries());
+  try{
+    var response=await fetch('https://formsubmit.co/ajax/eslemsessi179@gmail.com',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Accept:'application/json'},
+      body:JSON.stringify(fields),
+      signal:controller.signal
+    });
+    var rawResponse=await response.text();
+    var result={};
+    try{result=JSON.parse(rawResponse)}catch(parseError){}
+    if(!response.ok||(result.success!==true&&result.success!=='true'))throw new Error(result.message||'Message delivery failed');
     showSubmissionSuccess();
-    history.replaceState(null,'',location.pathname+'#contact');
-  },250);
-}
+  }catch(error){
+    contactForm.classList.add('has-error');
+    sendButton.disabled=false;
+    sendButton.innerHTML=sendButtonContent;
+    var errorBox=document.getElementById('formError');
+    errorBox.textContent=error.name==='AbortError'
+      ? 'FormSubmit did not respond in time. Please try again.'
+      : (error.message||'The message could not be delivered. Confirm FormSubmit activation, then try again.');
+    errorBox.focus();
+  }finally{
+    clearTimeout(timeout);
+  }
+});
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     if(projectOverlay.classList.contains('open'))closeProject();
